@@ -1,0 +1,28 @@
+#include "stm32f10x.h"
+
+void delay(volatile uint32_t count) {
+    while(count--) {}
+}
+
+int main(void) {
+    RCC->APB2ENR |= (1 << 2); 
+    GPIOA->CRL = 0x33333333;
+    int8_t led_pos = 0;     
+    int8_t direction = 1;   
+    while(1) {
+        GPIOA->ODR &= ~0x00FF; 
+        GPIOA->ODR |= (1 << led_pos); 
+        delay(500000);
+        if (direction == 1) {
+            led_pos++;
+            if (led_pos >= 7) {
+                direction = -1;
+            }
+        } else {
+            led_pos--;
+            if (led_pos <= 0) {
+                direction = 1;
+            }
+        }
+    }
+}
