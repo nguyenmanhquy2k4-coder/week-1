@@ -1,0 +1,28 @@
+#include "stm32f10x.h"
+
+void delay(volatile uint32_t count) {
+    while(count--) {}
+}
+
+int main(void) {
+    RCC->APB2ENR |= (1 << 2);
+    GPIOA->CRL &= ~0x000000FF; 
+    GPIOA->CRL |= 0x00000038;  
+    GPIOA->ODR |= (1 << 0);
+
+    uint8_t last_btn_state = 1;     
+    uint8_t current_btn_state = 1;  
+
+    while (1) {
+        current_btn_state = (GPIOA->IDR & (1 << 0)) ? 1 : 0;
+        if (last_btn_state == 0 && current_btn_state == 1) {
+            delay(10000);
+            if (GPIOA->IDR & (1 << 0)) {
+                GPIOA->ODR ^= (1 << 1);
+            }
+        }
+        last_btn_state = current_btn_state;
+        
+        delay(1000); 
+    }
+}
