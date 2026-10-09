@@ -1,0 +1,51 @@
+#include "stm32f10x.h"
+
+void TIM2_PWM_Init(void) {
+    // 1. Bật clock cho GPIOA, AFIO và TIM2
+    RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_AFIOEN;
+    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
+
+    // 2. Cấu hình các chân PA0, PA1, PA2, PA3 là Alternate Function Push-Pull (Output 50MHz)
+    // Mode = 11 (Output 50MHz), CNF = 10 (AF Push-Pull) -> Value = 0xB cho mỗi chân
+    GPIOA->CRL &= ~(0xFFFF); // Xóa cấu hình cũ của PA0 -> PA3
+    GPIOA->CRL |= (0xB << 0)   // PA0: Alternate Function Push-Pull
+               | (0xB << 4)   // PA1: Alternate Function Push-Pull
+               | (0xB << 8)   // PA2: Alternate Function Push-Pull
+               | (0xB << 12); // PA3: Alternate Function Push-Pull
+
+    // 3. Cấu hình Tần số cho TIM2 (Tần số PWM = 1kHz)
+    TIM2->PSC = 71;   // Bộ chia tần: 72MHz / (71 + 1) = 1MHz
+    TIM2->ARR = 999;  // Chu kỳ: 1MHz / (999 + 1) = 1kHz
+
+    // 4. Cấu hình chế độ PWM Mode 1 cho cả 4 kênh
+    // PWM Mode 1: Đặt OCxM = 110 (bit 6:4 đối với CH1, bit 14:12 đối với CH2,...)
+    TIM2->CCMR1 &= ~(TIM_CCMR1_OC1M | TIM_CCMR1_OC2M);
+    TIM2->CCMR1 |= (0x6 << 4) | (0x6 << 12); // PWM mode 1 cho CH1 & CH2
+
+    TIM2->CCMR2 &= ~(TIM_CCMR2_OC3M | TIM_CCMR2_OC4M);
+    TIM2->CCMR2 |= (0x6 << 4) | (0x6 << 12); // PWM mode 1 cho CH3 & CH4
+
+    // Bật bộ đệm Preload cho các kênh Output Compare
+    TIM2->CCMR1 |= TIM_CCMR1_OC1PE | TIM_CCMR1_OC2PE;
+    TIM2->CCMR2 |= TIM_CCMR2_OC3PE | TIM_CCMR2_OC4PE;
+
+    // 5. Cài đặt Duty Cycle cho từng kênh
+    TIM2->CCR1 = 10; // Duty 10%
+    TIM2->CCR2 = 100; // Duty 30%
+    TIM2->CCR3 = 200; // Duty 50%
+    TIM2->CCR4 = 2000; // Duty 70%
+
+    // 6. Cho phép xuất tín hiệu ở các chân Capture/Compare (CC1E, CC2E, CC3E, CC4E)
+    TIM2->CCER |= TIM_CCER_CC1E | TIM_CCER_CC2E | TIM_CCER_CC3E | TIM_CCER_CC4E;
+
+    // 7. Cho phép Auto-reload preload và Bật Timer 2
+    TIM2->CR1 |= TIM_CR1_ARPE | TIM_CR1_CEN;
+}
+
+int main(void) {
+    TIM2_PWM_Init();
+
+    while (1) {
+        // Vòng lặp chính - Tín hiệu PWM tự động được cập nhật phần cứng
+    }
+}
