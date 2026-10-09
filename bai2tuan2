@@ -1,0 +1,65 @@
+#include "stm32f10x.h"
+
+// Sử dụng từ khóa volatile để trình biên dịch không tối ưu hóa biến đọc từ ngắt
+volatile uint32_t systick_ms = 0;
+
+void GPIO_Init_Register(void) {
+    // 1. Bật Clock cho GPIOA
+    RCC->APB2ENR |= (1 << 2);
+
+    // 2. Xóa cấu hình cũ của PA0, PA1, PA2 (từ bit 0 đến bit 11)
+    GPIOA->CRL &= 0xFFFFF000;
+    
+    // 3. Cấu hình PA0, PA1, PA2 là Output Push-Pull, tốc độ 2MHz (MODE = 10, CNF = 00)
+    // PA0: 0x2 (bit 0-3)
+    // PA1: 0x20 (bit 4-7)
+    // PA2: 0x200 (bit 8-11)
+    // Tổng hợp: 0x00000222
+    GPIOA->CRL |= 0x00000222;
+}
+
+void SysTick_Init_Register(void) {
+    // Cài đặt ngắt SysTick mỗi 1ms (Giả định thạch anh chạy đúng 72MHz)
+    SysTick->LOAD = 72000 - 1;          
+    SysTick->VAL  = 0;                  
+    SysTick->CTRL = (1 << 0) | (1 << 1) | (1 << 2); // Bật Enable, TickInt, ClockSource
+}
+
+// Trình phục vụ ngắt SysTick (Gọi mỗi 1ms)
+void SysTick_Handler(void) {
+    systick_ms++;
+}
+
+int main(void) {
+    SystemInit();
+    GPIO_Init_Register();
+    SysTick_Init_Register();
+
+    // Biến lưu mốc thời gian riêng cho từng LED trong hàm while(1) 
+    // Giúp tránh lỗi chia sẻ chung biến đếm trong ngắt và dễ quản lý thời gian thực
+    uint32_t last_tick_10hz = 0;
+    uint32_t last_tick_1hz  = 0;
+    uint32_t last_tick_01hz = 0;
+
+    while (1) {
+        uint32_t current_time = systick_ms;
+
+        // 1. LED 10Hz (Đảo trạng thái mỗi 50ms)
+        if (current_time - last_tick_10hz >= 50) {
+            last_tick_10hz = current_time;
+            GPIOA->ODR ^= (1 << 0);
+        }
+
+        // 2. LED 1Hz (Đảo trạng thái mỗi 500ms)
+        if (current_time - last_tick_1hz >= 500) {
+            last_tick_1hz = current_time;
+            GPIOA->ODR ^= (1 << 1);
+        }
+
+        // 3. LED 0.1Hz (Đảo trạng thái mỗi 5000ms - 5 giây)
+        if (current_time - last_tick_01hz >= 5000) {
+            last_tick_01hz = current_time;
+            GPIOA->ODR ^= (1 << 2);
+        }
+    }
+}
