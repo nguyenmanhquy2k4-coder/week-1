@@ -1,0 +1,45 @@
+#include "stm32f10x.h"
+
+int main(void) {
+
+    RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN | RCC_APB2ENR_AFIOEN;
+
+    AFIO->MAPR |= AFIO_MAPR_SWJ_CFG_JTAGDISABLE;
+
+    GPIOA->CRL = 0x88888888;                     
+    GPIOA->ODR = (GPIOA->ODR & ~0x00FF) | 0x00FF; 
+
+    GPIOB->CRL &= ~0xFFFFF000; 
+    GPIOB->CRL |=  0x11111000; 
+
+    GPIOB->CRH &= ~0x000000FF; 
+    GPIOB->CRH |=  0x00000011; 
+
+    GPIOA->CRH &= ~0xF0000000; 
+    GPIOA->CRH |=  0x10000000; 
+
+    while (1) {
+
+        uint8_t input_val = (uint8_t)(GPIOA->IDR & 0x00FF);
+        uint8_t inverted = ~input_val;
+
+        uint32_t portb_out = 0;
+        if (inverted & (1 << 0)) portb_out |= (1 << 9); 
+        if (inverted & (1 << 1)) portb_out |= (1 << 8);
+        if (inverted & (1 << 2)) portb_out |= (1 << 7); 
+        if (inverted & (1 << 3)) portb_out |= (1 << 6); 
+        if (inverted & (1 << 4)) portb_out |= (1 << 5); 
+        if (inverted & (1 << 5)) portb_out |= (1 << 4); 
+        if (inverted & (1 << 6)) portb_out |= (1 << 3); 
+
+        GPIOB->ODR = (GPIOB->ODR & ~(0x7F << 3)) | portb_out;
+
+        if (inverted & (1 << 7)) {
+            GPIOA->ODR |= (1 << 15);  
+        } else {
+            GPIOA->ODR &= ~(1 << 15); 
+        }
+    }
+
+    return 0;
+}
